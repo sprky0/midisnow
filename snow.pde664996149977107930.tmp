@@ -1,0 +1,241 @@
+
+// https://www.youtube.com/watch?v=yamiiGk6aSs&feature=em-share_video_user
+
+int particleCount = 1000;
+particle[] snowflakes = new particle[particleCount];
+noisemap wind;
+int windaffect = 1;
+int[] fakeWeightedDistances = {
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+  2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+  3,3,3,3,3,3,3,3,3,3,
+  4,4,4,4,4,4,4,
+  5,5,5,5,5,
+  6,6,6,6,
+  7,7,7,
+  8,8,
+  9,
+  10,
+  11,
+  12,
+  13
+};
+
+int fakeRandom() {
+ return fakeWeightedDistances[(int) random(0, fakeWeightedDistances.length)]; 
+}
+
+void setup() {
+  
+  frameRate(24);
+  size(640, 480);
+  // fullScreen();
+ 
+  wind = new noisemap(width, height);
+
+  for(int i =0; i < particleCount; i++) {
+    snowflakes[i] = spawn();
+  }
+
+}
+
+void draw() {
+  
+  // clear the last frame
+  background(0);
+  
+  // draw the noisemap for now
+  image(wind.mappy, 0, 0);
+  
+  //  draw the background gradient
+  
+  // handle all physics and draw the snowflakes
+  // for(particle snowflake : snowflakes) {
+  for(int i = 0; i < particleCount; i++) {
+    
+    float[] accel = wind.getXY((int) snowflakes[i].x, (int) snowflakes[i].y);
+    // particle.changeAccel( wind.getXY((int) snowflakes[i].x, (int) snowflakes[i].y );
+    snowflakes[i].changeAcceleration( accel[0], accel[1], accel[2] );
+    snowflakes[i].update();
+    snowflakes[i].draw();
+    
+    if (snowflakes[i].inBounds(width, height)) {
+      System.out.println("respawn #" + i);
+      snowflakes[i] = spawn();
+    }
+  }
+}
+
+particle spawn() {
+  float x = random(0 - 20, width + 20);
+  float y = random(0 - height, 0);
+  float z = random(0, 10);
+  // float d = 10; // random(2, 20);
+  float d = (float) fakeRandom();
+  return new particle(x, y, z, d); 
+}
+
+class noisemap {
+
+  PImage mappy;
+  // PGraphics mappy;
+  
+  noisemap(int mapWidth, int mapHeight) {
+    mappy = createImage(mapWidth, mapHeight, RGB);
+    // mappy = createGraphics(mapWidth, mapHeight); // , P2D);
+    // mappy.size(mapWidth, mapHeight);
+    fillMap();
+  }
+  
+  void fillMap() {
+    /*
+    int z = 0;
+    for(int x = 0; x < mappy.width; x++) {
+      for(int y= 0; y < mappy.height; y++) {
+        // this is dumb but how about
+        // 127 = no movement, 0 = negative, 255 = positive
+        // x y z accel from channels r g b
+        int r = 129; // (int) (noise(x, y, z) * 255);
+        int g = 129; // (int) noise(x, y, z) * 255;
+        int b = 129; // (int) noise(x, y, z) * 255;
+
+        if (y > 200 && y < 400)
+          r = 255;
+        
+        mappy.set(x,y,color(r,g,b));
+      }
+    }
+    */
+    
+    for(int i = 0; i < 10; i++) {
+      int startX = (int) random(0, width);
+      int startY = (int) random(0, height);
+      // mappy.rect(startX, startY, random(startX, width), random(startY, height));
+      // fill(color(random(0,255), 128, 128));
+    }
+    
+  }
+  
+  float[] getXY(int x, int y) {
+    //mappy.loadPixels();
+    //color c = mappy.pixels[y * mappy.width + x];    // get(x, y);
+    color c = mappy.get(x, y);
+
+    int r = (c >> 16) & 0xFF;
+    int g = (c >> 8 ) & 0xFF;
+    int b =  c        & 0xFF;
+    float[] colorAtXY = {
+      r / 255,
+      g / 255,
+      b / 255
+    };
+    return colorAtXY;
+  }
+
+}
+
+class particle {
+
+  float x = 0;
+  float y = 0;
+  float z = 0;
+  float d = 2;
+  
+  float gravity = 0.5;
+  
+  float accelX = 0;
+  float accelY = 0;
+  float accelZ = 0;
+  
+  float velX = 0;
+  float velY = 0;
+  float velZ = 0;
+  
+  float friction = 0.9;
+  
+  // consider "density" for like, ice vs snow to affect terminal velocity
+  float terminalXYZ = 20;
+  
+  particle(float x, float y, float z, float d ) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+    this.d = d;
+  }
+
+  boolean inBounds(int x, int y) {
+    return this.y > y + d || this.x > x + d || this.x + d < 0;
+  }
+
+  float terminalVelocity(float terminal, float current) {
+
+    if (current == 0)
+      return 0;
+      
+    if (current < 0 && current < -terminal)
+        return -terminal;
+        
+    if (current > terminal)
+      return terminal;
+    
+    return current;    
+  }
+
+  void changeAcceleration(float x, float y, float z) {
+    
+    System.out.println( x + " " + y + " " + z );
+    
+    this.accelX += x;
+    this.accelY += y;
+    // this.accelZ += z;  
+  }
+
+  void update() {
+
+    // positive Y accel affected by gravity
+    this.accelY += this.gravity;
+
+    // velocity affected by acceleration
+    this.velX += this.accelX;
+    this.velY += this.accelY;
+    // this.velZ += this.accelZ;
+
+    // terminal velocity
+    this.velX = terminalVelocity(this.terminalXYZ, this.velX);
+    this.velY = terminalVelocity(this.terminalXYZ, this.velY);
+    // this.velZ = terminalVelocity(this.terminalXYZ, this.velZ);
+
+    // velocity affected by friction
+    this.velX *= this.friction;
+    this.velY *= this.friction;
+    // this.velZ *= this.friction;
+
+    this.accelX *= this.friction;
+    this.accelY *= this.friction;
+    // this.accelZ *= this.friction;
+
+    float distanceMult = (10 - this.z) / 10;
+
+    // move!
+    this.x += this.velX * distanceMult;
+    this.y += this.velY * distanceMult;
+    // this.z += this.velZ;
+
+  }
+  
+  void draw() {
+
+    noStroke();
+    ellipseMode(RADIUS);
+
+    // d = (10 - this.z) * d;
+    float distanceMult = (10 - this.z) / 10;
+    float d2 = distanceMult * d;
+
+    println(x, y, d2);
+    
+    fill(255);
+    ellipse(x, y, d2, d2);
+
+}
+}
