@@ -148,6 +148,7 @@ void draw() {
   long now = millis();
   
   // auto noteOff everyone
+  
   for(int i = 0; i < noteTimers.length; i++) {
     if (noteTimers[i] > 0 && now - noteTimers[i] > noteLength) {
       grid.noteAt(i % grid.getCols(), 0).off();
@@ -219,20 +220,25 @@ void draw() {
     snowflakes[i].update();
 
     snowflakes[i].draw();
-    
-    if (!snowflakes[i].hitSomebody() && snowflakes[i].x > 0 && snowflakes[i].y > grid.y && snowflakes[i].y < height && snowflakes[i].x < width) {
+
+    // ( snowflakes[i].y, grid.y );
+
+    if (snowflakes[i].x > 0 && snowflakes[i].x < width && snowflakes[i].y > grid.y && snowflakes[i].y < height) {
       
-      int noteConcern = (int) ( snowflakes[i].x / grid.getCols() ) % grid.getCols() ;
+      int noteConcern = (int) ( (snowflakes[i].x / width)  * grid.getCols() );
+
+      // println(snowflakes[i].x , width); // , (snowflakes[i].x / width) * grid.getCols() , grid.getCols()
 
       if (noteConcern >= 0 && noteConcern < grid.getCols()) {
         
-        if (snowflakes[i].x > grid.noteAt(noteConcern, 0).y + grid.noteAt(noteConcern, 0).h) {
+        if (!snowflakes[i].hitSomebody() && snowflakes[i].x < grid.noteAt(noteConcern, 0).y + grid.noteAt(noteConcern, 0).h) {
           snowflakes[i].iHitSomebody();
-          println("NOTE ON FUCKER!");
+          // println("snowflake " + i + " hit note " + noteConcern);
           grid.noteAt(noteConcern, 0).on();
-        } else {
+          noteTimers[noteConcern] = millis();
+        } else if (snowflakes[i].hitSomebody()) {
+          // println("snowflake " + i + " free of note " + noteConcern);
           snowflakes[i].iAmFree();
-          // grid.noteAt(noteConcern, 0).off();
         }
     
       }
@@ -319,7 +325,7 @@ void noteOn(int channel, int number, int value) {
   println("noteOn", channel, number, value );
   grid.noteAt(number % grid.getCols(),0).select();
   // grid.noteAt(number % grid.getCols(),0).toggle();
-  noteTimers[number % grid.getCols()] = millis(); // grid.noteAt(i % grid.getCols(), 0).off();
+  // noteTimers[number % grid.getCols()] = millis(); // grid.noteAt(i % grid.getCols(), 0).off();
 }
 
 void noteOff(int channel, int number, int value) {
@@ -803,15 +809,15 @@ class Grid extends Drawyguy {
     int cW = w / cols;
     int rH = h / rows;
     
-    println( cW, rH, w, h, cols, rows);
+    //println( cW, rH, w, h, cols, rows);
 
-    currentNote = 40;
+    currentNote = 70;
 
     for (int c = 0; c < cols; c++) {
       for (int r = 0; r < rows; r++) {
         int ind = grindex(c, r);
         notes[ind] = new NoteBox( parent, cW, rH, x + cW * c, y + rH * r, currentNote, defaultVelocity, ""+currentNote);
-        currentNote += 3;
+        currentNote += 1;
       }
     }
   }
