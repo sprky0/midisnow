@@ -1,5 +1,8 @@
 import themidibus.*;
 
+// # Grid, NoteBox etc
+// import midipets.*;
+
 /***
  * Processing Snowfall Simulation
  * But also now it's an organic sequencer
@@ -14,8 +17,9 @@ long   noteLength = 250; // all notes urn off automatically after a quarter of a
 MidiBus myBus;
 Grid grid;
 
-int particleCount = 200;
-particle[] snowflakes = new particle[particleCount];
+int particleCount = 400; // how amny to allow
+int particleMaxCount = 500; // how many to allow like, ever
+particle[] snowflakes = new particle[particleMaxCount];
 
 // how many levels of wind can we have? (same as levels of snow field distances)
 int maxZ = 5;
@@ -59,9 +63,9 @@ int selectedBgFill      = 0;
 // this is used to determine the relative population of the fields
 int[] fakeWeightedDistances = {
   // 5,5,5,5,5,5,5,5,5,
-  4, 4, 4, 4, 4, 4,
-  3, 3, 3, 3,
-  2, 2,
+  4, 4, 4, 4, 4, 4, 
+  3, 3, 3, 3, 
+  2, 2, 
   1
 };
 
@@ -106,13 +110,11 @@ void setup() {
     prevDrawMS = millis();
     bgFill[f] = new filler(width, height);
     bgFill[f].updateBackgroundFill(100, 127, 255, 255);
-    // bgFill[f].randomize();
-    // bgFill[f].drawBackgroundFill();
-    println((millis() - startDrawMS) + " ms elapsed");
-    println((millis() - prevDrawMS) + " ms for this round");
+    // println((millis() - startDrawMS) + " ms elapsed");
+    // println((millis() - prevDrawMS) + " ms for this round");
   }
 
-  println((millis() - startDrawMS) + " ms elapsed");
+  // println((millis() - startDrawMS) + " ms elapsed");
 
 
 
@@ -129,9 +131,9 @@ void setup() {
     100, // Grid height
     0, // int x
     height - 200, // int y
-    noteTimers.length, // int rows
-    1, // int cols
-    0, // start note
+    noteTimers.length, // int cols
+    1, // int rows
+    60, // start note
     100 // , // default velocity
   );
 
@@ -146,10 +148,10 @@ void setup() {
 void draw() {
 
   long now = millis();
-  
+
   // auto noteOff everyone
-  
-  for(int i = 0; i < noteTimers.length; i++) {
+
+  for (int i = 0; i < noteTimers.length; i++) {
     if (noteTimers[i] > 0 && now - noteTimers[i] > noteLength) {
       grid.noteAt(i % grid.getCols(), 0).off();
       noteTimers[i] = -1;
@@ -166,7 +168,7 @@ void draw() {
   noCursor();
 
   // clear the last frame
-  background(0,10,100);
+  background(0, 10, 100);
   // or use bg canvas buffer
   // fill(0);
   // rect(0, 0, width, height);
@@ -214,35 +216,38 @@ void draw() {
       float zF = (accel[2] + ambientWind[2]) * windEffect;
 
       snowflakes[i].changeAcceleration( xF, yF, zF );
-
     }
 
     snowflakes[i].update();
 
     snowflakes[i].draw();
 
-    // ( snowflakes[i].y, grid.y );
-
     if (snowflakes[i].x > 0 && snowflakes[i].x < width && snowflakes[i].y > grid.y && snowflakes[i].y < height) {
-      
-      int noteConcern = (int) ( (snowflakes[i].x / width)  * grid.getCols() );
 
-      // println(snowflakes[i].x , width); // , (snowflakes[i].x / width) * grid.getCols() , grid.getCols()
+      float tW = width;
+      float tX = snowflakes[i].x;
+      float tC  = (float) grid.getCols();
 
-      if (noteConcern >= 0 && noteConcern < grid.getCols()) {
-        
-        if (!snowflakes[i].hitSomebody() && snowflakes[i].x < grid.noteAt(noteConcern, 0).y + grid.noteAt(noteConcern, 0).h) {
-          snowflakes[i].iHitSomebody();
-          // println("snowflake " + i + " hit note " + noteConcern);
+      int noteConcern = (int) ( ( tX / tW )  * tC );
+
+      println( noteConcern, grid.getCols() );
+
+      if (noteConcern >= 0 && noteConcern < grid.getCols() && noteConcern != snowflakes[i].iHitSomebodyBeforeRightWhoWasIt()) {
+
+        if (!snowflakes[i].hitSomebody() && snowflakes[i].y < grid.noteAt(noteConcern, 0).y + grid.noteAt(noteConcern, 0).h) {
+          snowflakes[i].iHitSomebody(noteConcern);
+          println("snowflake " + i + " hit note " + noteConcern);
+          if (grid.noteAt(noteConcern, 0).isOn()) {
+            noteTimers[noteConcern] = millis();
+            grid.noteAt(noteConcern, 0).off();
+          }
           grid.noteAt(noteConcern, 0).on();
           noteTimers[noteConcern] = millis();
         } else if (snowflakes[i].hitSomebody()) {
           // println("snowflake " + i + " free of note " + noteConcern);
           snowflakes[i].iAmFree();
         }
-    
       }
-
     }
 
     if (lineSeqVisible && i > 0 && i < particleCount - 1) {
@@ -299,10 +304,10 @@ void draw() {
     text(fr, 10, 10);
 
     fill(calculateAccel ? 255 : 0);
-    rect(0,190,20,20);
+    rect(0, 190, 20, 20);
   }
 
-  
+
 
   grid.draw();
 }
@@ -312,8 +317,6 @@ void draw() {
 void controllerChange(int channel, int number, int value) {
 
   println( channel, number, value );
-  
-  
 }
 
 
@@ -323,14 +326,14 @@ void controllerChange(int channel, int number, int value) {
 // with the received values.
 void noteOn(int channel, int number, int value) {
   println("noteOn", channel, number, value );
-  grid.noteAt(number % grid.getCols(),0).select();
+  grid.noteAt(number % grid.getCols(), 0).select();
   // grid.noteAt(number % grid.getCols(),0).toggle();
   // noteTimers[number % grid.getCols()] = millis(); // grid.noteAt(i % grid.getCols(), 0).off();
 }
 
 void noteOff(int channel, int number, int value) {
   println("noteOff", channel, number, value );
-  grid.noteAt(number % grid.getCols(),0).deselect();  
+  grid.noteAt(number % grid.getCols(), 0).deselect();
 }
 
 
@@ -347,6 +350,20 @@ void routeAPI(int keyCode) {
   println(keyCode);
 
   switch (keyCode) {
+
+    /*
+  case 61: // plus
+     particleCount++;
+     if (particleCount > particleMaxCount - 1)
+     particleCount = particleMaxCount - 1;
+     break;
+     
+     case 45: // minus
+     particleCount--;
+     if (particleCount < 0)
+     particleCount = 0;
+     break;
+     */
 
   case 16: // shift
     break;
@@ -401,7 +418,7 @@ void routeAPI(int keyCode) {
   case 89: // Y
     arrowsVisible = !arrowsVisible;
     break;
-  
+
   case 85: // U
     break;
 
@@ -409,13 +426,19 @@ void routeAPI(int keyCode) {
     break;
 
   case 79: // O
+    for (int i = 0; i < grid.getCols(); i++) {
+      int newNote = (int) Math.floor( Math.random() * 128 );
+      grid.noteAt(i, 0).setNote(newNote);
+      grid.noteAt(i, 0).setLabel( "" + newNote );
+    }
     break;
 
   case 80: // P
+    for (int i = 0; i < grid.getCols(); i++) {
+      grid.noteAt(i, 0).toggle();
+    }
     break;
-
   }
-
 }
 
 
@@ -539,6 +562,8 @@ class particle {
 
   int zIndex = 1;
 
+  int hitThingID = -1;
+
   float x = 0;
   float y = 0;
   float z = 0;
@@ -573,11 +598,13 @@ class particle {
   }
 
   void backToTheTop(int w, int h) {
+    this.hitThingID = -1;
     this.x = random(0 - 20, w + 20);
     this.y = random(0 - h, 0);
   }
 
   void loopX(int w) {
+    this.hitThingID = -1;
     if (this.x <= 0)
       this.x = w + this.d;
     else
@@ -591,11 +618,16 @@ class particle {
   boolean hitSomebody() {
     return hit;
   }
-  
-  void iHitSomebody() {
+
+  int iHitSomebodyBeforeRightWhoWasIt() {
+    return hitThingID;
+  }
+
+  void iHitSomebody(int who) {
+    hitThingID = who;
     hit = true;
   }
-  
+
   void iAmFree() {
     hit = false;
   }
@@ -636,39 +668,38 @@ class particle {
   void update() {
 
     if (this.moves) {
-    
+
       // positive Y accel affected by gravity
       if (gravityEnabled)
         this.accelY += this.gravity;
-  
+
       // velocity affected by acceleration
       this.velX += this.accelX;
       this.velY += this.accelY;
       // this.velZ += this.accelZ;
-  
+
       // terminal velocity
       // not sure if this really helps actually - sort of sucks!
       // this.velX = terminalVelocity(this.terminalXYZ, this.velX);
       // this.velY = terminalVelocity(this.terminalXYZ, this.velY);
       // this.velZ = terminalVelocity(this.terminalXYZ, this.velZ);
-  
+
       // velocity affected by friction
       this.velX *= this.friction;
       this.velY *= this.friction;
       // this.velZ *= this.friction;
-  
+
       this.accelX *= this.friction;
       this.accelY *= this.friction;
       // this.accelZ *= this.friction;
-  
+
       float distanceMult = (maxZ - this.z) / maxZ;
-  
+
       // move!
       this.x += this.velX * distanceMult;
       this.y += this.velY * distanceMult;
       // this.z += this.velZ;
     }
-
   }
 
   void draw() {
@@ -725,9 +756,9 @@ class filler {
 
   void randomize() {
     updateBackgroundFill(
-      (int) random(0, 255),
-      (int) random(0, 255),
-      (int) random(0, 255),
+      (int) random(0, 255), 
+      (int) random(0, 255), 
+      (int) random(0, 255), 
       (int) random(0, 255)
       );
   }
@@ -770,7 +801,6 @@ class filler {
       backgroundFill.endDraw();
     }
   }
-
 }
 
 
@@ -781,192 +811,9 @@ class filler {
 
 
 
-
-
-
-
-class Grid extends Drawyguy {
-
-  NoteBox[] notes = new NoteBox[128];
-
-  int r;
-  int c;
-
-  Grid(PGraphics parent, int w, int h, int x, int y, int cols, int rows, int startNote, int defaultVelocity) { // , boolean toggleMode) {
-
-    notes = new NoteBox[rows * cols];
-
-    this.setParent(parent);
-    this.setPosition(x, y);
-    this.setSize(w, h);
-
-    int currentNote = startNote;
-
-    r = rows;
-    c = cols;
-
-    // note height / width
-    int cW = w / cols;
-    int rH = h / rows;
-    
-    //println( cW, rH, w, h, cols, rows);
-
-    currentNote = 70;
-
-    for (int c = 0; c < cols; c++) {
-      for (int r = 0; r < rows; r++) {
-        int ind = grindex(c, r);
-        notes[ind] = new NoteBox( parent, cW, rH, x + cW * c, y + rH * r, currentNote, defaultVelocity, ""+currentNote);
-        currentNote += 1;
-      }
-    }
-  }
-
-  void draw() {
-
-    // draw background ?
-    //parent.rect(x, y, w, h);
-    //parent.fill(100);
-    //parent.stroke(0);
-
-    // tell notes to draw
-    // @todo only draw changed
-    for (int i = 0; i < notes.length; i++) {
-      notes[i].draw();
-    }
-  }
-
-  // by pixel x/y
-  NoteBox noteAtXY(int pX, int pY) {
-    int rH = h / r;
-    int cW = w / c;
-
-    println( pX, pY );
-    println( h, r, w, c);
-    println(  pX / cW, pY / rH );
-
-    return noteAt( pX / cW, pY / rH);
-  }
-
-  // by column/row
-  NoteBox noteAt(int gX, int gY) {
-    return notes[grindex(gX, gY)];
-  }
-
-  int grindex(int gX, int gY) {
-    int ind = gY * c + gX;
-    return ind;
-  }
-
-  int getRows() {
-    return r;
-  }
-
-  int getCols() {
-    return c;
-  }
-}
-
-class NoteBox extends Drawyguy {
-
-  String label     = "";
-  int cornerRadius = 0;
-  boolean active   = false;
-  boolean selected = false;
-  color onC        = color(160, 0, 0, 60);
-  color onS        = color(140, 0, 0, 60);
-  color offC       = color(100, 0, 0, 60);
-  color offS       = color(60,  0, 0, 60);
-  color selectedOC = color(255, 100, 0);
-  color selectedC  = color(200, 0, 0);
-  color selectedS  = color(170, 0, 0);
-  color textC      = color(255, 0, 0);
-
-  int note = 0;
-  int velocity = 0;
-  // int duration = 0; // or does the host deal with this ? maybe box just 
-  // long lastOn = 0;
-
-  NoteBox(PGraphics parent, int w, int h, int x, int y, int noteValue, int defaultVelocity, String noteLabel) {
-    this.setParent(parent);
-    this.setSize(w, h);
-    this.setPosition(x, y);
-    note = noteValue % 128;
-    velocity = defaultVelocity;
-    label = noteLabel;
-  }
-
-  void draw() {
-
-    // text of note/vel/status ?
-
-    parent.fill(
-      active && selected ? selectedOC :
-      active ? onC :
-      selected ? selectedC : offC);
-
-    parent.stroke(
-      active && selected ? selectedOC :
-      active ? onS :
-      selected ? selectedS : offS);
-
-    parent.rect( x, y, w, h, cornerRadius);
-
-    // println( x, y, w, h );
-
-    parent.fill(textC);
-    parent.textAlign(CENTER, CENTER);
-    parent.text(label, x + w/2, y + h/2);
-  }
-
-  void on() {
-    on(-1, -1);
-  }
-
-  void on(int ln, int lv) {
-    active = true;
-    if (selected) {
-      println("send note", note, velocity);
-      myBus.sendNoteOn(
-        1, //channel
-        ln > 0 ? ln : note, 
-        lv > 0 ? lv : velocity
-      );
-    }
-  }
-
-  void off() {
-    off(-1, -1);
-  }
-
-  void off(int ln, int lv) {
-    active = false;
-    if (selected) {
-      myBus.sendNoteOff(
-        1, //channel
-        ln > 0 ? ln : note, 
-        lv > 0 ? lv : velocity
-      );
-    }
-  }
-
-  void toggle() {
-    selected = !selected;
-  }
-
-  void select() {
-    selected = true;
-  }
-
-  void deselect() {
-    selected = false;
-  }
-
-  boolean isSelected() {
-    return selected;
-  }
-}
-
+/**
+ * Define a stupid box b/c i am sick of it I tell ye
+ */
 class Drawyguy {
 
   PGraphics parent;
@@ -996,4 +843,207 @@ class Drawyguy {
   void setParent(PGraphics p) {
     parent = p;
   }
+}
+
+
+
+/**
+ * Define an XY grid of NoteBox classes
+ */
+class Grid extends Drawyguy {
+
+  NoteBox[] notes = new NoteBox[128];
+
+  int r;
+  int c;
+
+  Grid(PGraphics parent, int w, int h, int x, int y, int cols, int rows, int startNote, int defaultVelocity) { // , boolean toggleMode) {
+
+    notes = new NoteBox[rows * cols];
+
+    this.setParent(parent);
+    this.setPosition(x, y);
+    this.setSize(w, h);
+
+    int currentNote = startNote;
+
+    r = rows;
+    c = cols;
+
+    // note height / width
+    int cW = w / cols;
+    int rH = h / rows;
+
+    currentNote = startNote;
+
+    for (int c = 0; c < cols; c++) {
+      for (int r = 0; r < rows; r++) {
+        int ind = grindex(c, r);
+        notes[ind] = new NoteBox( parent, cW, rH, x + cW * c, y + rH * r, currentNote, defaultVelocity, ""+currentNote);
+        currentNote += 1;
+      }
+    }
+  }
+
+  void draw() {
+
+    // draw background ?
+    //parent.rect(x, y, w, h);
+    //parent.fill(100);
+    //parent.stroke(0);
+
+    // tell notes to draw
+    // @todo only draw changed
+    for (int i = 0; i < notes.length; i++) {
+      notes[i].draw();
+    }
+  }
+
+  // by pixel x/y
+  NoteBox noteAtXY(int pX, int pY) {
+    int rH = h / r;
+    int cW = w / c;
+
+    return noteAt( pX / cW, pY / rH);
+  }
+
+  // by column/row
+  NoteBox noteAt(int gX, int gY) {
+    return notes[grindex(gX, gY)];
+  }
+
+  int grindex(int gX, int gY) {
+    int ind = gY * c + gX;
+    return ind;
+  }
+
+  int getRows() {
+    return r;
+  }
+
+  int getCols() {
+    return c;
+  }
+}
+
+
+
+
+/**
+ *
+ */
+class NoteBox extends Drawyguy {
+
+  String label     = "";
+  int cornerRadius = 0;
+  boolean active   = false;
+  boolean selected = false;
+  color onC        = color(160, 0, 0, 60);
+  color onS        = color(140, 0, 0, 60);
+  color offC       = color(100, 0, 0, 60);
+  color offS       = color(60, 0, 0, 60);
+  color selectedOC = color(255, 100, 0);
+  color selectedC  = color(200, 0, 0);
+  color selectedS  = color(170, 0, 0);
+  color textC      = color(255, 0, 0);
+
+  int note = 0;
+  int velocity = 0;
+  // int duration = 0; // or does the host deal with this ? maybe box just
+  // long lastOn = 0;
+
+  NoteBox(PGraphics parent, int w, int h, int x, int y, int noteValue, int defaultVelocity, String noteLabel) {
+    this.setParent(parent);
+    this.setSize(w, h);
+    this.setPosition(x, y);
+    note = noteValue % 128;
+    velocity = defaultVelocity;
+    label = noteLabel;
+  }
+
+  void draw() {
+
+    // text of note/vel/status ?
+
+    parent.fill(
+      active && selected ? selectedOC :
+      active ? onC :
+      selected ? selectedC : offC);
+
+    parent.stroke(
+      active && selected ? selectedOC :
+      active ? onS :
+      selected ? selectedS : offS);
+
+    parent.rect( x, y, w, h, cornerRadius);
+
+    parent.fill(textC);
+    parent.textAlign(CENTER, CENTER);
+    parent.text(label, x + w/2, y + h/2);
+  }
+
+  void on() {
+    on(-1, -1);
+  }
+
+  void on(int ln, int lv) {
+    active = true;
+    if (selected) {
+      // println("send note", note, velocity);
+      myBus.sendNoteOn(
+        1, //channel
+        ln > 0 ? ln : note, 
+        lv > 0 ? lv : velocity
+        );
+    }
+  }
+
+
+  void off() {
+    off(-1, -1);
+  }
+
+  void off(int ln, int lv) {
+    active = false;
+    // if (selected) { // be optimisticly off-predisposed
+    myBus.sendNoteOff(
+      1, //channel
+      ln > 0 ? ln : note, 
+      lv > 0 ? lv : velocity
+      );
+    // }
+  }
+
+  void toggle() {
+    selected = !selected;
+  }
+
+  void select() {
+    selected = true;
+  }
+
+  void deselect() {
+    selected = false;
+  }
+
+  boolean isOn() {
+    return active;
+  }
+
+  boolean isSelected() {
+    return selected;
+  }
+
+  void setNote(int midiNote) {
+    note = midiNote;
+  }
+
+  void setVelocity(int midiVelocity) {
+    velocity = midiVelocity;
+  }
+  
+  void setLabel(String newLabel) { 
+    label = newLabel;
+  }
+
 }
