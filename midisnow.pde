@@ -26,39 +26,44 @@ int maxZ = 5;
 // this is used to generate wind interference to accelerate the particles as they move relative to the x,y noisemap
 noisemap[] wind = new noisemap[ maxZ + 1 ];
 
-boolean windVisible     = false;
-boolean debugVisible    = true;
-boolean arrowsVisible   = false;
-boolean lineSeqVisible  = true;
+color currentBackgroundColor = color(0,0,0);
+int currentBackgroundColorR = 0;
+int currentBackgroundColorG = 0;
+int currentBackgroundColorB = 0;
+    
+boolean windVisible      = false;
+boolean debugVisible     = false;
+boolean arrowsVisible    = false;
+boolean lineSeqVisible   = false;
 boolean framerateVisible = false;
 
-boolean debugOneLayer   = false;
-int debugOneLayerTarget = 1;
+boolean debugOneLayer    = false;
+int debugOneLayerTarget  = 1;
 
-boolean gravityEnabled  = true;
+boolean gravityEnabled   = true;
 
-boolean calculateAccel  = true;
-int accelFrameCounter   = 0;
+boolean calculateAccel   = true;
+int accelFrameCounter    = 0;
 
-boolean windFades       = true;
-float windEffect        = 0.25f;
-long lastChangeMS       = 0;
-long lastUpdateMS       = 0;
-int windChangeRateMS    = 1500; // how often do new wind effects come in?
-int windUpdateRateMS    = 200; // how often do we apply shifts like fading / motion
-int visibleMap          = 1;
-long lastMapMS          = 0;
-long mapChangeRateMS    = windChangeRateMS;
+boolean windFades        = true;
+float windEffect         = 0.25f;
+long lastChangeMS        = 0;
+long lastUpdateMS        = 0;
+int windChangeRateMS     = 1500; // how often do new wind effects come in?
+int windUpdateRateMS     = 200; // how often do we apply shifts like fading / motion
+int visibleMap           = 1;
+long lastMapMS           = 0;
+long mapChangeRateMS     = windChangeRateMS;
 
 // wind which sticks around and is applied to every particle in the system relative {x,y,z}
-float[] ambientWind     = {0, 0, 0};
+float[] ambientWind      = {0, 0, 0};
 
 PImage snowflake;
 PGraphics snowflakeSource;
 
-int bgFillCount         = 1;
-filler[] bgFill         = new filler[ bgFillCount ];
-int selectedBgFill      = 0;
+int bgFillCount          = 1;
+filler[] bgFill          = new filler[ bgFillCount ];
+int selectedBgFill       = 0;
 
 // this is used to determine the relative population of the fields
 int[] fakeWeightedDistances = {
@@ -82,10 +87,17 @@ void setup() {
   fullScreen(P3D);
   // size(640, 480, P3D);
   frameRate(60);
+  noCursor();
 
   // fullScreen(P3D);
 
-  noCursor();
+  background(0);
+
+  stroke(255, 0, 0);
+  line(0, 0, width, height);
+  line(width, 0, 0, height);
+
+  stroke(255, 0, 0);
 
   //snowflake = loadImage("snowflake1.png");
   //snowflake = loadImage("snowflake2.png");
@@ -168,7 +180,7 @@ void draw() {
   noCursor();
 
   // clear the last frame
-  background(0, 10, 100);
+  background(currentBackgroundColor);
   // or use bg canvas buffer
   // fill(0);
   // rect(0, 0, width, height);
@@ -230,13 +242,13 @@ void draw() {
 
       int noteConcern = (int) ( ( tX / tW )  * tC );
 
-      println( noteConcern, grid.getCols() );
+      // println( noteConcern, grid.getCols() );
 
       if (noteConcern >= 0 && noteConcern < grid.getCols() && noteConcern != snowflakes[i].iHitSomebodyBeforeRightWhoWasIt()) {
 
         if (!snowflakes[i].hitSomebody() && snowflakes[i].y < grid.noteAt(noteConcern, 0).y + grid.noteAt(noteConcern, 0).h) {
           snowflakes[i].iHitSomebody(noteConcern);
-          println("snowflake " + i + " hit note " + noteConcern);
+          // println("snowflake " + i + " hit note " + noteConcern);
           if (grid.noteAt(noteConcern, 0).isOn()) {
             noteTimers[noteConcern] = millis();
             grid.noteAt(noteConcern, 0).off();
@@ -336,8 +348,6 @@ void noteOff(int channel, int number, int value) {
   grid.noteAt(number % grid.getCols(), 0).deselect();
 }
 
-
-
 /**
  * handle routing keys to the API
  */
@@ -351,7 +361,7 @@ void routeAPI(int keyCode) {
 
   switch (keyCode) {
 
-    /*
+  /*
   case 61: // plus
      particleCount++;
      if (particleCount > particleMaxCount - 1)
@@ -363,7 +373,7 @@ void routeAPI(int keyCode) {
      if (particleCount < 0)
      particleCount = 0;
      break;
-     */
+  */
 
   case 16: // shift
     break;
@@ -438,10 +448,33 @@ void routeAPI(int keyCode) {
       grid.noteAt(i, 0).toggle();
     }
     break;
+
+  case 90: // z
+    currentBackgroundColorR = (currentBackgroundColorR + 10) % 255;
+    updateBackgroundColor();
+    break;
+
+  case 88: // x
+    currentBackgroundColorG = (currentBackgroundColorG + 10) % 255;
+    updateBackgroundColor();
+    break;
+
+  case 67: // c
+    currentBackgroundColorB = (currentBackgroundColorB + 10) % 255;
+    updateBackgroundColor();
+    break;
+  
   }
+  
 }
 
+void updateBackgroundColor() {
+  setBackgroundColor(currentBackgroundColorR, currentBackgroundColorG, currentBackgroundColorB);
+}
 
+void setBackgroundColor( int r, int g, int b ) {
+  currentBackgroundColor = color( r, g, b );
+}
 
 /**
  * Factory method to get a new particle within normal parameters
@@ -511,12 +544,13 @@ class noisemap {
 
     int startX = (int) random(0, mappy.width);
     int startY = (int) random(0, mappy.height);
-    int endX = (int) random(startX, mappy.width);
-    int endY = (int) random(startY, mappy.height);
+    int endX   = (int) random(startX, mappy.width);
+    int endY   = (int) random(startY, mappy.height);
 
     int colorR = color(random(0, 255), random(0, 255), 128);
 
     mappy.beginDraw();
+    mappy.noStroke();
     mappy.fill(colorR);
     mappy.ellipseMode(CORNER);
     mappy.ellipse(startX, startY, endX, endY);
@@ -760,7 +794,7 @@ class filler {
       (int) random(0, 255), 
       (int) random(0, 255), 
       (int) random(0, 255)
-      );
+    );
   }
 
   void updateBackgroundFill(int r, int g, int b, int alpha) {
@@ -938,10 +972,10 @@ class NoteBox extends Drawyguy {
   int cornerRadius = 0;
   boolean active   = false;
   boolean selected = false;
-  color onC        = color(160, 0, 0, 60);
-  color onS        = color(140, 0, 0, 60);
+  color onC        = color(160, 0, 0, 120);
+  color onS        = color(140, 0, 0, 120);
   color offC       = color(100, 0, 0, 60);
-  color offS       = color(60, 0, 0, 60);
+  color offS       = color(60, 0,  0, 0);
   color selectedOC = color(255, 100, 0);
   color selectedC  = color(200, 0, 0);
   color selectedS  = color(170, 0, 0);
